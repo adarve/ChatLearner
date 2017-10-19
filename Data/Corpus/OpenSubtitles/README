@@ -1,0 +1,10 @@
+
+Copy opensubtitle data file with one Q/A per line separated by ?
+
+Q ? A
+
+to OpenSubtitles/Data/train.txt
+
+copy the output from the script to Data/Corpus/Augment0/opensubtitles_clean.txt
+
+Then run the vocab generator.
