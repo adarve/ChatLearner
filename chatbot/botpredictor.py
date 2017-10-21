@@ -26,7 +26,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 class BotPredictor(object):
-    def __init__(self, session, corpus_dir, knbase_dir, result_dir, result_file):
+    def __init__(self, session, corpus_dir, knbase_dir, result_dir):
         self.session = session
 
         # Prepare data and hyper parameters
@@ -43,10 +43,9 @@ class BotPredictor(object):
         print("# Creating inference model ...")
         self.model = ModelCreator(training=False, tokenized_data=self.tokenized_data,
                                   batch_input=self.infer_batch)
-        # Restore model weights
+        latest_ckpt = tf.train.latest_checkpoint(result_dir)
         print("# Restoring model weights ...")
-        self.model.saver.restore(session, os.path.join(result_dir, result_file))
-
+        self.model.saver.restore(session, latest_ckpt)
         self.session.run(tf.tables_initializer())
 
     def predict(self, sentence, html_format=False):
