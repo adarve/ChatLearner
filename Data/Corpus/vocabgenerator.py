@@ -46,8 +46,6 @@ def generate_vocab_file(corpus_dir):
     for t in ['(', '[', '{', '``', '$']:
         vocab_list.append(t)
 
-    import string
-    exclude = set(string.punctuation)
     vocab_dict = defaultdict(lambda: 0)
 
     for fd in range(2, -1, -1):
@@ -71,13 +69,13 @@ def generate_vocab_file(corpus_dir):
                         if l.startswith("Q:") or l.startswith("A:"):
                             tokens = l[2:].strip().split(' ')
                             for token in tokens:
-                                token = ''.join(ch for ch in token if ch not in exclude)
                                 if len(token) and token != ' ':
                                     t = token.lower()
                                     if t not in vocab_list:
                                         vocab_list.append(t)
 
     #print("Vocab size after all base data files scanned: {}".format(len(vocab_list)))
+    vocab_set = set(vocab_list)
 
     temp_dict = {}  # A temp dict
     cornell_file = os.path.join(corpus_dir, AUG0_FOLDER, CORNELL_DATA_FILE)
@@ -89,10 +87,10 @@ def generate_vocab_file(corpus_dir):
             if ln.startswith("Q:") or ln.startswith("A:"):
                 tokens = ln[2:].strip().split(' ')
                 for token in tokens:
-                    token = ''.join(ch for ch in token if ch not in exclude)
                     if len(token) and token != ' ':
                         t = token.lower()
-                        vocab_dict[t] += 1
+                        if t not in vocab_set:
+                            vocab_dict[t] += 1
 
     print("Vocab size after cornell data file scanned: {}".format(len(vocab_list)))
 
@@ -109,10 +107,10 @@ def generate_vocab_file(corpus_dir):
             if ln.startswith("Q:") or ln.startswith("A:"):
                 tokens = ln[2:].strip().split(' ')
                 for token in tokens:
-                    token = ''.join(ch for ch in token if ch not in exclude)
                     if len(token) and token != ' ':
                         t = token.lower()
-                        vocab_dict[t] += 1
+                        if t not in vocab_set:
+                            vocab_dict[t] += 1
 
     opensubtitles_file = os.path.join(corpus_dir, AUG0_FOLDER, OPENSUBTITLES_DATA_FILE)
     with open(opensubtitles_file, 'r') as f2:
@@ -127,23 +125,23 @@ def generate_vocab_file(corpus_dir):
             if ln.startswith("Q:") or ln.startswith("A:"):
                 tokens = ln[2:].strip().split(' ')
                 for token in tokens:
-                    token = ''.join(ch for ch in token if ch not in exclude)
                     if len(token) and token != ' ':
                         t = token.lower()
-                        vocab_dict[t] += 1
+                        if t not in vocab_set:
+                            vocab_dict[t] += 1
 
     more = VOCAB_MAX_SIZE - len(vocab_list)
     if more > 0:
         limited = sorted(vocab_dict.items(), key=lambda x: -x[1])[:more]
-        vocab_list.extend(map(lambda x: x[0], limited))
+    vocab_list.extend(map(lambda x: x[0], limited))
 
-    with open(os.path.join(corpus_dir, VOCAB_FILE), 'a') as f_voc:
+    with open(os.path.join(corpus_dir, VOCAB_FILE), 'w') as f_voc:
         for v in vocab_list:
             f_voc.write("{}\n".format(v))
 
     print("The final vocab file generated. Vocab size: {}".format(len(vocab_list)))
 
-    with open(os.path.join(corpus_dir, EXCLUDED_FILE), 'a') as f_excluded:
+    with open(os.path.join(corpus_dir, EXCLUDED_FILE), 'w') as f_excluded:
         for k, _ in temp_dict.items():
             if k not in vocab_list:
                 f_excluded.write("{}\n".format(k))
