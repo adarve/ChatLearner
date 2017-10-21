@@ -29,7 +29,7 @@ def bot_ui():
 
     with tf.Session() as sess:
         predictor = BotPredictor(sess, corpus_dir=corp_dir, knbase_dir=knbs_dir,
-                                 result_dir=res_dir, result_file='basic')
+                                 result_dir=res_dir)
 
         print("Welcome to Chat with ChatLearner!")
         print("Type exit and press enter to end the conversation.")

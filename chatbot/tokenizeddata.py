@@ -38,9 +38,9 @@ class TokenizedData:
         """
         Args:
             corpus_dir: Name of the folder storing corpus files for training.
-            hparams: The object containing the loaded hyper parameters. If None, it will be 
+            hparams: The object containing the loaded hyper parameters. If None, it will be
                     initialized here.
-            knbase_dir: Name of the folder storing data files for the knowledge base. Used for 
+            knbase_dir: Name of the folder storing data files for the knowledge base. Used for
                     inference only.
             training: Whether to use this object for training.
             buffer_size: The buffer size used for mapping process during data processing.
@@ -259,6 +259,10 @@ class TokenizedData:
         self.text_set = self.text_set.map(lambda src, tgt:
                                           (src[:self.src_max_len], tgt[:self.tgt_max_len]),
                                           output_buffer_size=buffer_size)
+
+        # Remove sentences that has unknown tokens
+        self.text_set = self.text_set.filter(lambda src, tgt:
+                                            tf.reduce_all(self.hparams.unk_id != tf.cast(self.vocab_table.lookup(tgt), tf.int32)))
 
         # Reverse the source sentence if applicable
         if self.hparams.source_reverse:

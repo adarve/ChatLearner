@@ -34,6 +34,7 @@ class BotTrainer(object):
             self.model = ModelCreator(training=True, tokenized_data=tokenized_data,
                                       batch_input=self.train_batch)
 
+
     def train(self, result_dir, target=""):
         """Train a seq2seq model."""
         # Summary writer
@@ -48,16 +49,16 @@ class BotTrainer(object):
         config_proto.gpu_options.allow_growth = True
 
         with tf.Session(target=target, config=config_proto, graph=self.graph) as sess:
-            sess.run(tf.global_variables_initializer())
-            sess.run(tf.tables_initializer())
+            self.model.create_or_load_model(result_dir, sess)
             global_step = self.model.global_step.eval(session=sess)
+            print("# Global step = {:5d}".format(global_step))
 
             # Initialize all of the iterators
             sess.run(self.train_batch.initializer)
 
             # Initialize the statistic variables
             ckpt_loss, ckpt_predict_count = 0.0, 0.0
-            train_perp, last_record_perp = 2000.0, 2.0
+            train_perp = 2000.0
             train_epoch = 0
 
             print("# Training loop started @ {}".format(time.strftime("%Y-%m-%d %H:%M:%S")))
@@ -96,9 +97,7 @@ class BotTrainer(object):
                     summary_writer.add_summary(summary, global_step)
 
                     # Save checkpoint
-                    if train_perp < 1.6 and train_perp < last_record_perp:
-                        self.model.saver.save(sess, os.path.join(result_dir, "basic"), global_step=global_step)
-                        last_record_perp = train_perp
+                    self.model.saver.save(sess, os.path.join(result_dir, "basic"), global_step=global_step)
 
                     ckpt_loss, ckpt_predict_count = 0.0, 0.0
 

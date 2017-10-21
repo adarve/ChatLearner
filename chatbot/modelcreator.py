@@ -108,6 +108,17 @@ class ModelCreator(object):
             for param in params:
                 print("  {}, {}, {}".format(param.name, str(param.get_shape()), param.op.device))
 
+    def create_or_load_model(self, model_dir, session):
+      """Create translation model and initialize or load parameters in session."""
+      latest_ckpt = tf.train.latest_checkpoint(model_dir)
+      if latest_ckpt:
+          self.saver.restore(session, latest_ckpt)
+          session.run(tf.tables_initializer())
+      else:
+          session.run(tf.global_variables_initializer())
+          session.run(tf.tables_initializer())
+
+
     def train_step(self, sess, learning_rate):
         """Run one step of training."""
         assert self.training
