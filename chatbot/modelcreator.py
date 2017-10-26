@@ -100,7 +100,7 @@ class ModelCreator(object):
             self.infer_summary = tf.no_op()
 
         # Saver
-        self.saver = tf.train.Saver(tf.global_variables())
+        self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
 
         # Print trainable variables
         if training:
