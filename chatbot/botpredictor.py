@@ -21,18 +21,21 @@ from chatbot.tokenizeddata import TokenizedData
 from chatbot.modelcreator import ModelCreator
 from chatbot.functiondata import FunctionData
 from chatbot.functiondata import call_function
+from chatbot.hparams import HParams
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 class BotPredictor(object):
-    def __init__(self, session, corpus_dir, knbase_dir, result_dir):
+    def __init__(self, session, corpus_dir, knbase_dir, result_dir, hparams_dir=None):
         self.session = session
+
+        hparams = HParams(hparams_dir).hparams if hparams_dir else None
 
         # Prepare data and hyper parameters
         print("# Prepare dataset placeholder and hyper parameters ...")
-        self.tokenized_data = TokenizedData(corpus_dir=corpus_dir, knbase_dir=knbase_dir,
-                                            training=False)
+        self.tokenized_data = TokenizedData(corpus_dir=corpus_dir, hparams=hparams,
+                                            knbase_dir=knbase_dir, training=False)
 
         self.hparams = self.tokenized_data.hparams
         self.src_placeholder = tf.placeholder(shape=[None], dtype=tf.string)

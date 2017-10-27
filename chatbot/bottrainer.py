@@ -19,15 +19,17 @@ import time
 import tensorflow as tf
 from chatbot.tokenizeddata import TokenizedData
 from chatbot.modelcreator import ModelCreator
+from chatbot.hparams import HParams
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 class BotTrainer(object):
-    def __init__(self, corpus_dir):
+    def __init__(self, corpus_dir, hparams_dir=None):
+        hparams = HParams(hparams_dir).hparams if hparams_dir else None
         self.graph = tf.Graph()
         with self.graph.as_default():
-            tokenized_data = TokenizedData(corpus_dir=corpus_dir)
+            tokenized_data = TokenizedData(corpus_dir=corpus_dir, hparams=hparams)
 
             self.hparams = tokenized_data.hparams
             self.train_batch = tokenized_data.get_training_batch()
@@ -136,5 +138,5 @@ if __name__ == "__main__":
 
     corp_dir = os.path.join(PROJECT_ROOT, 'Data', 'Corpus')
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result3')
-    bt = BotTrainer(corpus_dir=corp_dir)
+    bt = BotTrainer(corpus_dir=corp_dir, hparams_dir=res_dir)
     bt.train(res_dir)
