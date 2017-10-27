@@ -135,6 +135,6 @@ if __name__ == "__main__":
     from settings import PROJECT_ROOT
 
     corp_dir = os.path.join(PROJECT_ROOT, 'Data', 'Corpus')
-    res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
+    res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result3')
     bt = BotTrainer(corpus_dir=corp_dir)
     bt.train(res_dir)

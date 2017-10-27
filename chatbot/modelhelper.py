@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 import tensorflow as tf
+import numpy as np
 
 
 def get_initializer(init_op, seed=None, init_weight=None):
@@ -36,12 +37,39 @@ def get_initializer(init_op, seed=None, init_weight=None):
 #     return device_str_output
 
 
-def create_embbeding(vocab_size, embed_size, dtype=tf.float32, scope=None):
+def create_embbeding(vocab_size, embed_size, dtype=tf.float32, trainable=True, scope=None):
     """Create embedding matrix for both encoder and decoder."""
     with tf.variable_scope(scope or "embeddings", dtype=dtype):
-        embedding = tf.get_variable("embedding", [vocab_size, embed_size], dtype)
-
+        kwargs = {}
+        if not trainable:
+            kwargs['trainable'] = trainable
+            kwargs['caching_device'] = '/cpu:0'
+        embedding = tf.get_variable("embedding", [vocab_size, embed_size], dtype, **kwargs)
     return embedding
+
+
+def populate_embedding(embedding, vocab_list, pretrained_embedding_file):
+    vocab_size, embed_size = embedding.shape.as_list()
+    weights = np.random.normal(0, scale=1. / np.sqrt(embed_size), size=[vocab_size, embed_size])
+    weights = weights.astype(np.float32)
+
+    mapping = { token: i for i, token in enumerate(vocab_list) }
+    print ('Mapping pretrained embeddings')
+    with open(pretrained_embedding_file, 'r') as pretrained:
+        e_vocab_size, e_embed_size = list(map(float, pretrained.readline().split()))
+        if embed_size != e_embed_size:
+            raise ValueError('The pretrained embedding {} needs to be the same dimesion {}'.format(e_embed_size, embed_size))
+        for line in pretrained:
+            line = line.split()
+            token = line[0]
+            try:
+                index = mapping[token]
+                if index != 0:
+                    weights[index] = np.array(line[1:], dtype=np.float32)
+                    #print ('mapping {}'.format(token))
+            except KeyError:
+                pass
+    return tf.assign(embedding, weights)
 
 
 def _single_cell(num_units, keep_prob, device_str=None):

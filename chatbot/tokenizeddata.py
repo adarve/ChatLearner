@@ -58,7 +58,7 @@ class TokenizedData:
         self.id_set = None
 
         vocab_file = os.path.join(corpus_dir, VOCAB_FILE)
-        self.vocab_size, _ = check_vocab(vocab_file)
+        self.vocab_size, self.vocab_list = check_vocab(vocab_file)
         self.vocab_table = lookup_ops.index_table_from_file(vocab_file,
                                                             default_value=self.hparams.unk_id)
         # print("vocab_size = {}".format(self.vocab_size))

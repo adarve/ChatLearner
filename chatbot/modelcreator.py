@@ -16,6 +16,7 @@ import tensorflow as tf
 import chatbot.modelhelper as model_helper
 
 from tensorflow.python.layers import core as layers_core
+import os
 
 
 class ModelCreator(object):
@@ -49,7 +50,18 @@ class ModelCreator(object):
         # Embeddings
         self.embedding = (model_helper.create_embbeding(vocab_size=self.vocab_size,
                                                         embed_size=hparams.num_units,
+                                                        trainable=hparams.train_embeddings,
                                                         scope=scope))
+
+        if hparams.pretrained_embeddings:
+            from settings import PROJECT_ROOT
+            pretrained_embeddings_file = os.path.join(PROJECT_ROOT, 'Data', 'Corpus', hparams.pretrained_embeddings)
+            self.pretrained = model_helper.populate_embedding(self.embedding,
+                                                                tokenized_data.vocab_list,
+                                                                pretrained_embeddings_file)
+        else:
+            self.pretrained = None
+
         # This batch_size might vary among each batch instance due to the bucketing and/or reach
         # the end of the training set. Treat it as size_of_the_batch.
         self.batch_size = tf.size(self.batch_input.source_sequence_length)
@@ -99,6 +111,7 @@ class ModelCreator(object):
         else:
             self.infer_summary = tf.no_op()
 
+
         # Saver
         self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
 
@@ -117,6 +130,8 @@ class ModelCreator(object):
       else:
           session.run(tf.global_variables_initializer())
           session.run(tf.tables_initializer())
+          if self.pretrained is not None:
+              session.run(self.pretrained)
 
 
     def train_step(self, sess, learning_rate):
