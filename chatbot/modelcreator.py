@@ -53,7 +53,7 @@ class ModelCreator(object):
                                                         trainable=hparams.train_embeddings,
                                                         scope=scope))
 
-        if hparams.pretrained_embeddings:
+        if training and hparams.pretrained_embeddings:
             from settings import PROJECT_ROOT
             pretrained_embeddings_file = os.path.join(PROJECT_ROOT, 'Data', 'Corpus', hparams.pretrained_embeddings)
             self.pretrained = model_helper.populate_embedding(self.embedding,
