@@ -109,8 +109,10 @@ class ModelCreator(object):
             self.update_gen = opt.apply_gradients(
                 zip(clipped_gradients, gen_tvars), global_step=self.global_step)
 
-            update_disc = tf.cond(tf.less(self.disc.accuracy_fake[1], 0.6),
-                                  lambda: self.disc.update, lambda: tf.no_op())
+            self.train_discriminator = tf.placeholder(tf.bool, shape=[], name='train_discriminator')
+            # Need to review this
+            # I try to make the discriminator train only the accuracy falls a lot
+            update_disc = tf.cond(self.train_discriminator, lambda: self.disc.update, lambda: tf.no_op())
 
             self.update = tf.group(self.disc.loss, update_disc, self.train_loss, self.update_gen)
 
@@ -154,7 +156,7 @@ class ModelCreator(object):
               session.run(self.pretrained)
 
 
-    def train_step(self, sess, learning_rate):
+    def train_step(self, sess, learning_rate, train_discriminator=False):
         """Run one step of training."""
         assert self.training
 
@@ -167,7 +169,8 @@ class ModelCreator(object):
                          self.word_count,
                          self.batch_size,
                          ],
-                        feed_dict={self.learning_rate: learning_rate})
+                        feed_dict={self.learning_rate: learning_rate,
+                                   self.train_discriminator: train_discriminator})
 
     def build_graph(self, hparams, scope=None):
         """Creates a sequence-to-sequence model with dynamic RNN decoder API."""

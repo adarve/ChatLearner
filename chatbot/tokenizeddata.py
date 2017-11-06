@@ -63,9 +63,12 @@ class TokenizedData:
                                                             default_value=self.hparams.unk_id)
         # print("vocab_size = {}".format(self.vocab_size))
 
+        self.reverse_vocab_table = \
+            lookup_ops.index_to_string_table_from_file(vocab_file,
+                                                       default_value=self.hparams.unk_token)
+
         if training:
             self.case_table = prepare_case_table()
-            self.reverse_vocab_table = None
             self._load_corpus(corpus_dir)
             self._convert_to_tokens(buffer_size)
 
@@ -74,9 +77,6 @@ class TokenizedData:
             self.jokes = []
         else:
             self.case_table = None
-            self.reverse_vocab_table = \
-                lookup_ops.index_to_string_table_from_file(vocab_file,
-                                                           default_value=self.hparams.unk_token)
             assert knbase_dir is not None
             knbs = KnowledgeBase()
             knbs.load_knbase(knbase_dir)

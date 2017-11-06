@@ -14,6 +14,7 @@ class Discriminator(object):
         self.hparams = generator.hparams
         self.time_major = self.hparams.time_major
         self.sample_id = tf.transpose(sample_id)
+        self.reverse_vocab_table = generator.reverse_vocab_table
 
         # create two copies of discriminator, one for real pairs and one for fake pairs
         # they share the same underlying variables
@@ -41,9 +42,13 @@ class Discriminator(object):
         with tf.name_scope("discriminator_train"):
             discrim_tvars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
             discrim_optim = tf.train.AdamOptimizer()
-            discrim_grads_and_vars = discrim_optim.compute_gradients(self.loss,
-                                                                     var_list=discrim_tvars)
-            self.update = discrim_optim.apply_gradients(discrim_grads_and_vars)
+            #discrim_grads_and_vars = discrim_optim.compute_gradients(self.loss,
+            #                                                         var_list=discrim_tvars)
+            gradients = tf.gradients(self.loss, discrim_tvars)
+            clipped_gradients, _ = model_helper.gradient_clip(gradients,
+                                                              max_gradient_norm=self.hparams.max_gradient_norm)
+
+            self.update = discrim_optim.apply_gradients(zip(clipped_gradients, discrim_tvars))
 
     def metrics(self):
         accuracy_real = tf.summary.scalar("disc_accuracy_real", self.accuracy_real[1]),
@@ -51,7 +56,9 @@ class Discriminator(object):
         #loss_real = tf.summary.scalar("disc_loss_real", self.loss_real),
         #loss_fake = tf.summary.scalar("disc_loss_fake", self.loss_fake),
         loss = tf.summary.scalar("disc_loss", self.loss),
-        return [ accuracy_real, accuracy_fake, loss ]
+        source_words = self.reverse_vocab_table.lookup(tf.to_int64(self.batch_input.original_source))
+        source_words = tf.summary.text("source", source_words)
+        return [ accuracy_real, accuracy_fake, loss, source_words ]
 
     def _build_disc(self, source, target):
         embedding = model_helper.create_embbeding(vocab_size=self.vocab_size,
