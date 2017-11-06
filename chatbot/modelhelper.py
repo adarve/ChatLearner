@@ -57,8 +57,8 @@ def populate_embedding(embedding, vocab_list, pretrained_embedding_file):
     print ('Mapping pretrained embeddings')
     with open(pretrained_embedding_file, 'r') as pretrained:
         e_vocab_size, e_embed_size = list(map(float, pretrained.readline().split()))
-        if embed_size != e_embed_size:
-            raise ValueError('The pretrained embedding {} needs to be the same dimesion {}'.format(e_embed_size, embed_size))
+        #if embed_size != e_embed_size:
+        #    raise ValueError('The pretrained embedding {} needs to be the same dimesion {}'.format(e_embed_size, embed_size))
         for line in pretrained:
             line = line.split()
             token = line[0]

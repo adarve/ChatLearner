@@ -15,6 +15,7 @@
 import math
 import os
 import time
+from datetime import datetime
 
 import tensorflow as tf
 from chatbot.tokenizeddata import TokenizedData
@@ -40,7 +41,7 @@ class BotTrainer(object):
     def train(self, result_dir, target=""):
         """Train a seq2seq model."""
         # Summary writer
-        summary_name = "train_log"
+        summary_name = "train_log_{}".format(datetime.utcnow())
         summary_writer = tf.summary.FileWriter(os.path.join(result_dir, summary_name), self.graph)
 
         log_device_placement = self.hparams.log_device_placement
@@ -59,7 +60,7 @@ class BotTrainer(object):
             sess.run(self.train_batch.initializer)
 
             # Initialize the statistic variables
-            ckpt_loss, ckpt_predict_count = 0.0, 0.0
+            ckpt_loss, disc_loss, ckpt_predict_count = 0.0, 0.0, 0.0
             train_perp = 2000.0
             train_epoch = 0
 
@@ -71,16 +72,32 @@ class BotTrainer(object):
                 learning_rate = self._get_learning_rate(train_perp)
 
                 try:
+                    #batch = sess.run(self.model.batch_input)
+                    #sample_id, source, target = sess.run([self.model.sample_id,
+                    #            self.model.batch_input.original_source,
+                    #            self.model.batch_input.original_target])
+
                     step_result = self.model.train_step(sess, learning_rate=learning_rate)
-                    (_, step_loss, step_predict_count, step_summary, global_step,
+                    (_, step_disc_loss, step_loss, step_predict_count, step_summary, global_step,
                      step_word_count, batch_size) = step_result
+
+                    #print("# Gen loss = {}".format(step_loss))
+                    #print("# Disc loss = {}".format(disc_loss))
+                    #sample_id = sess.run(self.model.sample_id)
+
+                    #print(sess.run(self.model.disc.predict_real))
+                    #import ipdb; ipdb.set_trace()
+                    #print(sess.run(self.model.disc.predict_fake))
+                    #import ipdb; ipdb.set_trace()
 
                     # Write step summary.
                     summary_writer.add_summary(step_summary, global_step)
 
                     # update statistics
                     ckpt_loss += (step_loss * batch_size)
+                    disc_loss += step_disc_loss
                     ckpt_predict_count += step_predict_count
+
                 except tf.errors.OutOfRangeError:
                     # Finished going through the training dataset. Go to next epoch.
                     train_epoch += 1
@@ -93,6 +110,7 @@ class BotTrainer(object):
                           "mean loss = {:.4f}, perplexity = {:8.4f}, and {:.2f} seconds elapsed."
                           .format(train_epoch, global_step, time.strftime("%Y-%m-%d %H:%M:%S"),
                                   learning_rate, mean_loss, train_perp, round(epoch_dur, 2)))
+                    print("# disc loss = {:.4f}".format(disc_loss))
                     epoch_start_time = time.time()  # The start time of the next epoch
 
                     summary = tf.Summary(value=[tf.Summary.Value(tag="train_perp", simple_value=train_perp)])
@@ -101,7 +119,7 @@ class BotTrainer(object):
                     # Save checkpoint
                     self.model.saver.save(sess, os.path.join(result_dir, "basic"), global_step=global_step)
 
-                    ckpt_loss, ckpt_predict_count = 0.0, 0.0
+                    ckpt_loss, disc_loss, ckpt_predict_count = 0.0, 0.0, 0.0
 
                     sess.run(self.model.batch_input.initializer)
                     continue
@@ -136,7 +154,7 @@ class BotTrainer(object):
 if __name__ == "__main__":
     from settings import PROJECT_ROOT
 
-    corp_dir = os.path.join(PROJECT_ROOT, 'Data', 'Corpus')
-    res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result3')
+    corp_dir = os.path.join(PROJECT_ROOT, 'Data', 'SmallCorpus')
+    res_dir = os.path.join(PROJECT_ROOT, 'Data', 'SmallResult')
     bt = BotTrainer(corpus_dir=corp_dir, hparams_dir=res_dir)
     bt.train(res_dir)

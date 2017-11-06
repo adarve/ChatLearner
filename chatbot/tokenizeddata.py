@@ -96,13 +96,15 @@ class TokenizedData:
         # After this mapping, each element in the train_set contains 3 columns/items.
         train_set = train_set.map(lambda src, tgt:
                                   (src, tf.concat(([self.hparams.bos_id], tgt), 0),
-                                   tf.concat((tgt, [self.hparams.eos_id]), 0)),
+                                   tf.concat((tgt, [self.hparams.eos_id]), 0),
+                                   src, tgt),
                                   num_threads=num_threads,
                                   output_buffer_size=buffer_size)
 
         # Add in sequence lengths.
-        train_set = train_set.map(lambda src, tgt_in, tgt_out:
-                                  (src, tgt_in, tgt_out, tf.size(src), tf.size(tgt_in)),
+        train_set = train_set.map(lambda src, tgt_in, tgt_out, src_orig, tgt_orig:
+                                  (src, tgt_in, tgt_out, tf.size(src), tf.size(tgt_in),
+                                  src_orig, tgt_orig),
                                   num_threads=num_threads,
                                   output_buffer_size=buffer_size)
 
@@ -115,20 +117,24 @@ class TokenizedData:
                                tf.TensorShape([None]),  # tgt_input
                                tf.TensorShape([None]),  # tgt_output
                                tf.TensorShape([]),      # src_len
-                               tf.TensorShape([])),     # tgt_len
+                               tf.TensorShape([]),     # tgt_len
+                               tf.TensorShape([None]),  # src_orig
+                               tf.TensorShape([None])),  # tgt_orig
                 # Pad the source and target sequences with eos tokens. Though we don't generally need to
                 # do this since later on we will be masking out calculations past the true sequence.
                 padding_values=(self.hparams.eos_id,  # src
                                 self.hparams.eos_id,  # tgt_input
                                 self.hparams.eos_id,  # tgt_output
                                 0,       # src_len -- unused
-                                0))      # tgt_len -- unused
+                                0,       # tgt_len -- unused
+                                0,
+                                0))
 
         if self.hparams.num_buckets > 1:
             bucket_width = (self.src_max_len + self.hparams.num_buckets - 1) // self.hparams.num_buckets
 
             # Parameters match the columns in each element of the dataset.
-            def key_func(unused_1, unused_2, unused_3, src_len, tgt_len):
+            def key_func(unused_1, unused_2, unused_3, src_len, tgt_len, src_orig, tgt_orig):
                 # Calculate bucket_width by maximum source sequence length. Pairs with length [0, bucket_width)
                 # go to bucket 0, length [bucket_width, 2 * bucket_width) go to bucket 1, etc. Pairs with
                 # length over ((num_bucket-1) * bucket_width) words all go into the last bucket.
@@ -147,14 +153,17 @@ class TokenizedData:
             batched_dataset = batching_func(train_set)
 
         batched_iter = batched_dataset.make_initializable_iterator()
-        (src_ids, tgt_input_ids, tgt_output_ids, src_seq_len, tgt_seq_len) = (batched_iter.get_next())
+        (src_ids, tgt_input_ids, tgt_output_ids, src_seq_len, tgt_seq_len,
+         src_orig, tgt_orig) = (batched_iter.get_next())
 
         return BatchedInput(initializer=batched_iter.initializer,
                             source=src_ids,
                             target_input=tgt_input_ids,
                             target_output=tgt_output_ids,
                             source_sequence_length=src_seq_len,
-                            target_sequence_length=tgt_seq_len)
+                            target_sequence_length=tgt_seq_len,
+                            original_source=src_orig,
+                            original_target=tgt_orig)
 
     def get_inference_batch(self, src_dataset):
         text_dataset = src_dataset.map(lambda src: tf.string_split([src]).values)
@@ -191,7 +200,9 @@ class TokenizedData:
                             target_input=None,
                             target_output=None,
                             source_sequence_length=src_seq_len,
-                            target_sequence_length=None)
+                            target_sequence_length=None,
+                            original_source=None,
+                            original_target=None)
 
     def _load_corpus(self, corpus_dir):
         for fd in range(2, -1, -1):
@@ -309,7 +320,9 @@ class BatchedInput(namedtuple("BatchedInput",
                                "target_input",
                                "target_output",
                                "source_sequence_length",
-                               "target_sequence_length"])):
+                               "target_sequence_length",
+                               "original_source",
+                               "original_target"])):
     pass
 
 # The code below is kept for debugging purpose only. Uncomment and run it to understand

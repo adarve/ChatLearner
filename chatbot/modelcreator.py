@@ -14,6 +14,7 @@
 # ==============================================================================
 import tensorflow as tf
 import chatbot.modelhelper as model_helper
+from chatbot.discriminator import Discriminator
 
 from tensorflow.python.layers import core as layers_core
 import os
@@ -48,10 +49,10 @@ class ModelCreator(object):
         tf.get_variable_scope().set_initializer(initializer)
 
         # Embeddings
-        self.embedding = (model_helper.create_embbeding(vocab_size=self.vocab_size,
+        self.embedding = model_helper.create_embbeding(vocab_size=self.vocab_size,
                                                         embed_size=hparams.num_units,
                                                         trainable=hparams.train_embeddings,
-                                                        scope=scope))
+                                                        scope=scope)
 
         if training and hparams.pretrained_embeddings:
             from settings import PROJECT_ROOT
@@ -72,6 +73,8 @@ class ModelCreator(object):
                 self.output_layer = layers_core.Dense(
                     self.vocab_size, use_bias=False, name="output_projection")
 
+        self.global_step = tf.Variable(0, trainable=False)
+
         # Training or inference graph
         print("# Building graph for the model ...")
         res = self.build_graph(hparams, scope=scope)
@@ -82,53 +85,70 @@ class ModelCreator(object):
                               tf.reduce_sum(self.batch_input.target_sequence_length)
             # Count the number of predicted words for compute perplexity.
             self.predict_count = tf.reduce_sum(self.batch_input.target_sequence_length)
+            self.sample_id = res[-1]
         else:
             self.infer_logits, _, self.final_context_state, self.sample_id = res
             self.sample_words = self.reverse_vocab_table.lookup(tf.to_int64(self.sample_id))
 
-        self.global_step = tf.Variable(0, trainable=False)
-
-        params = tf.trainable_variables()
+        gen_tvars = [var for var in tf.trainable_variables() if var.name.startswith("dynamic_seq2seq")]
 
         # Gradients update operation for training the model.
         if training:
+            #with tf.control_dependencies([]):
+
             self.learning_rate = tf.placeholder(tf.float32, shape=[], name='learning_rate')
             opt = tf.train.AdamOptimizer(self.learning_rate)
 
-            gradients = tf.gradients(self.train_loss, params)
+            #depends = [self.disc.update] if self.disc else []
+            #with tf.control_dependencies(depends):
+            gradients = tf.gradients(self.train_loss, gen_tvars)
 
             clipped_gradients, gradient_norm_summary = model_helper.gradient_clip(
                 gradients, max_gradient_norm=hparams.max_gradient_norm)
 
-            self.update = opt.apply_gradients(
-                zip(clipped_gradients, params), global_step=self.global_step)
+            self.update_gen = opt.apply_gradients(
+                zip(clipped_gradients, gen_tvars), global_step=self.global_step)
 
-            # Summary
-            self.train_summary = tf.summary.merge([
+            update_disc = tf.cond(tf.less(self.disc.accuracy_fake[1], 0.6),
+                                  lambda: self.disc.update, lambda: tf.no_op())
+
+            self.update = tf.group(self.disc.loss, update_disc, self.train_loss, self.update_gen)
+
+            scalars = [
                 tf.summary.scalar("learning_rate", self.learning_rate),
                 tf.summary.scalar("train_loss", self.train_loss),
-            ] + gradient_norm_summary)
+            ] + gradient_norm_summary
+            if self.disc:
+                scalars += self.disc.metrics()
+
+            # Summary
+            self.train_summary = tf.summary.merge(scalars)
         else:
             self.infer_summary = tf.no_op()
 
-
         # Saver
-        self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
+        if self.hparams.only_restore_gan:
+            variables = [v for v in tf.global_variables() if v.name.startswith('dynamic_seq2seq')]
+        else:
+            variables = tf.global_variables()
+        self.saver = tf.train.Saver(variables, max_to_keep=5)
 
         # Print trainable variables
         if training:
             print("# Trainable variables:")
-            for param in params:
+            for param in tf.trainable_variables():
                 print("  {}, {}, {}".format(param.name, str(param.get_shape()), param.op.device))
 
     def create_or_load_model(self, model_dir, session):
       """Create translation model and initialize or load parameters in session."""
       latest_ckpt = tf.train.latest_checkpoint(model_dir)
+      init = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
       if latest_ckpt:
+          session.run(init)
           self.saver.restore(session, latest_ckpt)
           session.run(tf.tables_initializer())
       else:
-          session.run(tf.global_variables_initializer())
+          session.run(init)
           session.run(tf.tables_initializer())
           if self.pretrained is not None:
               session.run(self.pretrained)
@@ -139,12 +159,14 @@ class ModelCreator(object):
         assert self.training
 
         return sess.run([self.update,
+                         self.disc.loss,
                          self.train_loss,
                          self.predict_count,
                          self.train_summary,
                          self.global_step,
                          self.word_count,
-                         self.batch_size],
+                         self.batch_size,
+                         ],
                         feed_dict={self.learning_rate: learning_rate})
 
     def build_graph(self, hparams, scope=None):
@@ -159,13 +181,19 @@ class ModelCreator(object):
             logits, sample_id, final_context_state = self._build_decoder(
                 encoder_outputs, encoder_state, hparams)
 
+        if self.training:
+            self.disc = Discriminator(self, sample_id)
+
+        with tf.variable_scope(scope or "dynamic_seq2seq", dtype=dtype):
             # Loss
             if self.training:
-                loss = self._compute_loss(logits)
+                l1_loss = self._compute_loss(logits)
+                loss = hparams.l1_weight * l1_loss + hparams.gan_weight * self.disc.gan_loss
             else:
                 loss = None
 
-            return logits, loss, final_context_state, sample_id
+        return logits, loss, final_context_state, sample_id
+
 
     def _build_encoder(self, hparams):
         """Build an encoder."""
