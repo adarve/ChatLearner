@@ -127,8 +127,8 @@ class TokenizedData:
                                 self.hparams.eos_id,  # tgt_output
                                 0,       # src_len -- unused
                                 0,       # tgt_len -- unused
-                                0,
-                                0))
+                                self.hparams.eos_id,
+                                self.hparams.eos_id))
 
         if self.hparams.num_buckets > 1:
             bucket_width = (self.src_max_len + self.hparams.num_buckets - 1) // self.hparams.num_buckets

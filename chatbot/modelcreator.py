@@ -85,9 +85,10 @@ class ModelCreator(object):
                               tf.reduce_sum(self.batch_input.target_sequence_length)
             # Count the number of predicted words for compute perplexity.
             self.predict_count = tf.reduce_sum(self.batch_input.target_sequence_length)
-            self.sample_id = res[-1]
+            self.sample_id = res[-2]
+            self.greedy_sample_id = res[-1]
         else:
-            self.infer_logits, _, self.final_context_state, self.sample_id = res
+            self.infer_logits, _, self.final_context_state, self.sample_id, self.greedy_sample_id = res
             self.sample_words = self.reverse_vocab_table.lookup(tf.to_int64(self.sample_id))
 
         gen_tvars = [var for var in tf.trainable_variables() if var.name.startswith("dynamic_seq2seq")]
@@ -130,7 +131,7 @@ class ModelCreator(object):
 
         # Saver
         if self.hparams.only_restore_gan:
-            variables = [v for v in tf.global_variables() if v.name.startswith('dynamic_seq2seq')]
+            variables = [v for v in tf.global_variables() if not v.name.startswith('discriminator')]
         else:
             variables = tf.global_variables()
         self.saver = tf.train.Saver(variables, max_to_keep=5)
@@ -181,11 +182,11 @@ class ModelCreator(object):
             encoder_outputs, encoder_state = self._build_encoder(hparams)
 
             # Decoder
-            logits, sample_id, final_context_state = self._build_decoder(
+            logits, sample_id, final_context_state, greedy_sample_id = self._build_decoder(
                 encoder_outputs, encoder_state, hparams)
 
         if self.training:
-            self.disc = Discriminator(self, sample_id)
+            self.disc = Discriminator(self, greedy_sample_id)
 
         with tf.variable_scope(scope or "dynamic_seq2seq", dtype=dtype):
             # Loss
@@ -195,7 +196,7 @@ class ModelCreator(object):
             else:
                 loss = None
 
-        return logits, loss, final_context_state, sample_id
+        return logits, loss, final_context_state, sample_id, greedy_sample_id
 
 
     def _build_encoder(self, hparams):
@@ -276,6 +277,33 @@ class ModelCreator(object):
 
                 sample_id = outputs.sample_id
                 logits = self.output_layer(outputs.rnn_output)
+
+                #######
+                start_tokens = tf.fill([self.batch_size], bos_id)
+                end_token = eos_id
+                # Helper
+                helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(
+                    self.embedding, start_tokens, end_token)
+
+                # Decoder
+                my_greedy_decoder = tf.contrib.seq2seq.BasicDecoder(
+                    cell,
+                    helper,
+                    decoder_initial_state,
+                    output_layer=self.output_layer  # applied per timestep
+                )
+
+                # Dynamic decoding
+                outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+                    my_greedy_decoder,
+                    impute_finished=True,
+                    maximum_iterations=maximum_iterations,
+                    output_time_major=self.time_major,
+                    swap_memory=True,
+                    scope=decoder_scope)
+
+                greedy_sample_id = outputs.sample_id
+
             # Inference
             else:
                 beam_width = hparams.beam_width
@@ -321,7 +349,9 @@ class ModelCreator(object):
                     logits = outputs.rnn_output
                     sample_id = outputs.sample_id
 
-        return logits, sample_id, final_context_state
+                greedy_sample_id = sample_id
+
+        return logits, sample_id, final_context_state, greedy_sample_id
 
     def _build_decoder_cell(self, hparams, encoder_outputs, encoder_state,
                             source_sequence_length):

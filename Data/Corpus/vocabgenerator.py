@@ -35,7 +35,7 @@ def generate_vocab_file(corpus_dir):
     vocab_list = []
 
     # Special tokens, with IDs: 0, 1, 2
-    for t in ['_unk_', '_bos_', '_eos_']:
+    for t in ['_eos_', '_bos_', '_unk_']:
         vocab_list.append(t)
 
     # The word following this punctuation should be capitalized in the prediction output.
@@ -79,56 +79,59 @@ def generate_vocab_file(corpus_dir):
 
     temp_dict = {}  # A temp dict
     cornell_file = os.path.join(corpus_dir, AUG0_FOLDER, CORNELL_DATA_FILE)
-    with open(cornell_file, 'r') as f1:
-        for line in f1:
-            ln = line.strip()
-            if not ln:
-                continue
-            if ln.startswith("Q:") or ln.startswith("A:"):
-                tokens = ln[2:].strip().split(' ')
-                for token in tokens:
-                    if len(token) and token != ' ':
-                        t = token.lower()
-                        if t not in vocab_set:
-                            vocab_dict[t] += 1
+    if os.path.isfile(cornell_file):
+        with open(cornell_file, 'r') as f1:
+            for line in f1:
+                ln = line.strip()
+                if not ln:
+                    continue
+                if ln.startswith("Q:") or ln.startswith("A:"):
+                    tokens = ln[2:].strip().split(' ')
+                    for token in tokens:
+                        if len(token) and token != ' ':
+                            t = token.lower()
+                            if t not in vocab_set:
+                                vocab_dict[t] += 1
 
     print("Vocab size after cornell data file scanned: {}".format(len(vocab_list)))
 
     reddit_file = os.path.join(corpus_dir, AUG0_FOLDER, REDDIT_DATA_FILE)
-    with open(reddit_file, 'r') as f2:
-        line_cnt = 0
-        for line in f2:
-            line_cnt += 1
-            if line_cnt % 200000 == 0:
-                print("{:,} lines of reddit data file scanned.".format(line_cnt))
-            ln = line.strip()
-            if not ln:
-                continue
-            if ln.startswith("Q:") or ln.startswith("A:"):
-                tokens = ln[2:].strip().split(' ')
-                for token in tokens:
-                    if len(token) and token != ' ':
-                        t = token.lower()
-                        if t not in vocab_set:
-                            vocab_dict[t] += 1
+    if os.path.isfile(reddit_file):
+        with open(reddit_file, 'r') as f2:
+            line_cnt = 0
+            for line in f2:
+                line_cnt += 1
+                if line_cnt % 200000 == 0:
+                    print("{:,} lines of reddit data file scanned.".format(line_cnt))
+                ln = line.strip()
+                if not ln:
+                    continue
+                if ln.startswith("Q:") or ln.startswith("A:"):
+                    tokens = ln[2:].strip().split(' ')
+                    for token in tokens:
+                        if len(token) and token != ' ':
+                            t = token.lower()
+                            if t not in vocab_set:
+                                vocab_dict[t] += 1
 
     opensubtitles_file = os.path.join(corpus_dir, AUG0_FOLDER, OPENSUBTITLES_DATA_FILE)
-    with open(opensubtitles_file, 'r') as f2:
-        line_cnt = 0
-        for line in f2:
-            line_cnt += 1
-            if line_cnt % 200000 == 0:
-                print("{:,} lines of opensubtitles data file scanned.".format(line_cnt))
-            ln = line.strip()
-            if not ln:
-                continue
-            if ln.startswith("Q:") or ln.startswith("A:"):
-                tokens = ln[2:].strip().split(' ')
-                for token in tokens:
-                    if len(token) and token != ' ':
-                        t = token.lower()
-                        if t not in vocab_set:
-                            vocab_dict[t] += 1
+    if os.path.isfile(opensubtitles_file):
+        with open(opensubtitles_file, 'r') as f2:
+            line_cnt = 0
+            for line in f2:
+                line_cnt += 1
+                if line_cnt % 200000 == 0:
+                    print("{:,} lines of opensubtitles data file scanned.".format(line_cnt))
+                ln = line.strip()
+                if not ln:
+                    continue
+                if ln.startswith("Q:") or ln.startswith("A:"):
+                    tokens = ln[2:].strip().split(' ')
+                    for token in tokens:
+                        if len(token) and token != ' ':
+                            t = token.lower()
+                            if t not in vocab_set:
+                                vocab_dict[t] += 1
 
     more = VOCAB_MAX_SIZE - len(vocab_list)
     if more > 0:

@@ -25,7 +25,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 def bot_ui():
     corp_dir = os.path.join(PROJECT_ROOT, 'Data', 'Corpus')
     knbs_dir = os.path.join(PROJECT_ROOT, 'Data', 'KnowledgeBase')
-    res_dir = os.path.join(PROJECT_ROOT, 'Data', 'GANResult')
+    res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
 
     with tf.Session() as sess:
         predictor = BotPredictor(sess, corpus_dir=corp_dir, knbase_dir=knbs_dir,

@@ -37,13 +37,11 @@ class Discriminator(object):
             self.accuracy_fake = tf.metrics.accuracy(ones, tf.argmax(self.predict_fake, 1))
 
             self.loss = loss_real + loss_fake
-            self.gan_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.predict_fake, labels=zeros))
+            self.gan_loss = -tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.predict_fake, labels=ones))
 
         with tf.name_scope("discriminator_train"):
             discrim_tvars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
             discrim_optim = tf.train.AdamOptimizer()
-            #discrim_grads_and_vars = discrim_optim.compute_gradients(self.loss,
-            #                                                         var_list=discrim_tvars)
             gradients = tf.gradients(self.loss, discrim_tvars)
             clipped_gradients, _ = model_helper.gradient_clip(gradients,
                                                               max_gradient_norm=self.hparams.max_gradient_norm)
@@ -56,9 +54,13 @@ class Discriminator(object):
         #loss_real = tf.summary.scalar("disc_loss_real", self.loss_real),
         #loss_fake = tf.summary.scalar("disc_loss_fake", self.loss_fake),
         loss = tf.summary.scalar("disc_loss", self.loss),
-        source_words = self.reverse_vocab_table.lookup(tf.to_int64(self.batch_input.original_source))
+        source_words = self.reverse_vocab_table.lookup(tf.to_int64(self.batch_input.original_source[:5]))
         source_words = tf.summary.text("source", source_words)
-        return [ accuracy_real, accuracy_fake, loss, source_words ]
+        target_words = self.reverse_vocab_table.lookup(tf.to_int64(self.batch_input.original_target[:5]))
+        target_words = tf.summary.text("target", target_words)
+        predicted_words = self.reverse_vocab_table.lookup(tf.to_int64(self.sample_id[:5]))
+        predicted_words = tf.summary.text("predicted", predicted_words)
+        return [ accuracy_real, accuracy_fake, loss, source_words, target_words, predicted_words ]
 
     def _build_disc(self, source, target):
         embedding = model_helper.create_embbeding(vocab_size=self.vocab_size,
