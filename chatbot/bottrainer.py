@@ -79,6 +79,7 @@ class BotTrainer(object):
 
                     step_result = self.model.train_step(sess, learning_rate=learning_rate,
                                                     train_discriminator=(train_epoch % 5 == 0))
+                                                    #train_discriminator=True)
                     (_, step_disc_loss, step_loss, step_predict_count, step_summary, global_step,
                      step_word_count, batch_size) = step_result
 

@@ -14,7 +14,8 @@
 # ==============================================================================
 import tensorflow as tf
 import chatbot.modelhelper as model_helper
-from chatbot.discriminator import Discriminator
+#from chatbot.discriminator import DoubleEncoderDiscriminator
+from chatbot.discriminator import AvgEmbDiscriminator
 
 from tensorflow.python.layers import core as layers_core
 import os
@@ -33,6 +34,7 @@ class ModelCreator(object):
         """
         self.training = training
         self.batch_input = batch_input
+        self.vocab_list = tokenized_data.vocab_list
         self.vocab_table = tokenized_data.vocab_table
         self.vocab_size = tokenized_data.vocab_size
         self.reverse_vocab_table = tokenized_data.reverse_vocab_table
@@ -49,7 +51,7 @@ class ModelCreator(object):
         tf.get_variable_scope().set_initializer(initializer)
 
         # Embeddings
-        self.embedding = model_helper.create_embbeding(vocab_size=self.vocab_size,
+        self.embedding = model_helper.create_embedding(vocab_size=self.vocab_size,
                                                         embed_size=hparams.num_units,
                                                         trainable=hparams.train_embeddings,
                                                         scope=scope)
@@ -58,7 +60,7 @@ class ModelCreator(object):
             from settings import PROJECT_ROOT
             pretrained_embeddings_file = os.path.join(PROJECT_ROOT, 'Data', 'Corpus', hparams.pretrained_embeddings)
             self.pretrained = model_helper.populate_embedding(self.embedding,
-                                                                tokenized_data.vocab_list,
+                                                                self.vocab_list,
                                                                 pretrained_embeddings_file)
         else:
             self.pretrained = None
@@ -104,23 +106,25 @@ class ModelCreator(object):
             #with tf.control_dependencies(depends):
             gradients = tf.gradients(self.train_loss, gen_tvars)
 
-            clipped_gradients, gradient_norm_summary = model_helper.gradient_clip(
+            clipped_gradients, _ = model_helper.gradient_clip(
                 gradients, max_gradient_norm=hparams.max_gradient_norm)
 
-            self.update_gen = opt.apply_gradients(
-                zip(clipped_gradients, gen_tvars), global_step=self.global_step)
-
             self.train_discriminator = tf.placeholder(tf.bool, shape=[], name='train_discriminator')
+
+            update_gen = opt.apply_gradients(zip(clipped_gradients, gen_tvars), global_step=self.global_step)
+            #update_gen = tf.cond(tf.logical_not(self.train_discriminator), lambda: update_gen, lambda: tf.no_op())
+
             # Need to review this
             # I try to make the discriminator train only the accuracy falls a lot
             update_disc = tf.cond(self.train_discriminator, lambda: self.disc.update, lambda: tf.no_op())
 
-            self.update = tf.group(self.disc.loss, update_disc, self.train_loss, self.update_gen)
+            self.update = tf.group(self.disc.loss, self.disc.accuracy_real[1], self.disc.accuracy_fake[1],
+                                   update_disc, self.train_loss, update_gen)
 
             scalars = [
                 tf.summary.scalar("learning_rate", self.learning_rate),
                 tf.summary.scalar("train_loss", self.train_loss),
-            ] + gradient_norm_summary
+            ]
             if self.disc:
                 scalars += self.disc.metrics()
 
@@ -156,6 +160,9 @@ class ModelCreator(object):
           if self.pretrained is not None:
               session.run(self.pretrained)
 
+      init_disc = self.disc.get_initializer() if self.disc else tf.no_op()
+      session.run(init_disc)
+
 
     def train_step(self, sess, learning_rate, train_discriminator=False):
         """Run one step of training."""
@@ -186,7 +193,7 @@ class ModelCreator(object):
                 encoder_outputs, encoder_state, hparams)
 
         if self.training:
-            self.disc = Discriminator(self, greedy_sample_id)
+            self.disc = AvgEmbDiscriminator(self, greedy_sample_id)
 
         with tf.variable_scope(scope or "dynamic_seq2seq", dtype=dtype):
             # Loss

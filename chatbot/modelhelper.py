@@ -37,13 +37,13 @@ def get_initializer(init_op, seed=None, init_weight=None):
 #     return device_str_output
 
 
-def create_embbeding(vocab_size, embed_size, dtype=tf.float32, trainable=True, scope=None):
+def create_embedding(vocab_size, embed_size, dtype=tf.float32, trainable=True, scope=None):
     """Create embedding matrix for both encoder and decoder."""
     with tf.variable_scope(scope or "embeddings", dtype=dtype):
         kwargs = {}
         if not trainable:
             kwargs['trainable'] = trainable
-            kwargs['caching_device'] = '/cpu:0'
+            #kwargs['caching_device'] = '/cpu:0'
         embedding = tf.get_variable("embedding", [vocab_size, embed_size], dtype, **kwargs)
     return embedding
 
