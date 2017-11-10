@@ -273,7 +273,9 @@ class TokenizedData:
 
         # Remove sentences that has unknown tokens
         self.text_set = self.text_set.filter(lambda src, tgt:
-                                            tf.reduce_all(self.hparams.unk_id != tf.cast(self.vocab_table.lookup(tgt), tf.int32)))
+                                            tf.reduce_all(tf.not_equal(self.hparams.unk_id, tf.cast(self.vocab_table.lookup(src), tf.int32))))
+        self.text_set = self.text_set.filter(lambda src, tgt:
+                                            tf.reduce_all(tf.not_equal(self.hparams.unk_id, tf.cast(self.vocab_table.lookup(tgt), tf.int32))))
 
         # Reverse the source sentence if applicable
         if self.hparams.source_reverse:
