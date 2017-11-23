@@ -23,8 +23,18 @@ VOCAB_FILE = "vocab.txt"
 CORNELL_DATA_FILE = "cornell_cleaned_new.txt"
 REDDIT_DATA_FILE = "reddit_cleaned_part.txt"
 OPENSUBTITLES_DATA_FILE = "opensubtitles_cleaned.txt"
+BAD_WORDS_FILE = "bad-words.txt"
 EXCLUDED_FILE = "excluded.txt"
-VOCAB_MAX_SIZE = 40000
+VOCAB_MAX_SIZE = 20000
+
+
+def load_bad_words(corpus_dir):
+    bad = set()
+    with open(os.path.join(corpus_dir, BAD_WORDS_FILE), 'r') as f:
+        for line in f:
+            word = line.strip().lower();
+            bad.add(word)
+    return bad
 
 
 def generate_vocab_file(corpus_dir):
@@ -47,6 +57,7 @@ def generate_vocab_file(corpus_dir):
         vocab_list.append(t)
 
     vocab_dict = defaultdict(lambda: 0)
+    bad_words = load_bad_words(corpus_dir);
 
     for fd in range(2, -1, -1):
         if fd == 0:
@@ -71,7 +82,7 @@ def generate_vocab_file(corpus_dir):
                             for token in tokens:
                                 if len(token) and token != ' ':
                                     t = token.lower()
-                                    if t not in vocab_list:
+                                    if t not in vocab_list and t not in bad_words:
                                         vocab_list.append(t)
 
     #print("Vocab size after all base data files scanned: {}".format(len(vocab_list)))
@@ -90,7 +101,7 @@ def generate_vocab_file(corpus_dir):
                     for token in tokens:
                         if len(token) and token != ' ':
                             t = token.lower()
-                            if t not in vocab_set:
+                            if t not in vocab_set and t not in bad_words:
                                 vocab_dict[t] += 1
 
     print("Vocab size after cornell data file scanned: {}".format(len(vocab_list)))
@@ -111,7 +122,7 @@ def generate_vocab_file(corpus_dir):
                     for token in tokens:
                         if len(token) and token != ' ':
                             t = token.lower()
-                            if t not in vocab_set:
+                            if t not in vocab_set and t not in bad_words:
                                 vocab_dict[t] += 1
 
     opensubtitles_file = os.path.join(corpus_dir, AUG0_FOLDER, OPENSUBTITLES_DATA_FILE)
@@ -130,7 +141,7 @@ def generate_vocab_file(corpus_dir):
                     for token in tokens:
                         if len(token) and token != ' ':
                             t = token.lower()
-                            if t not in vocab_set:
+                            if t not in vocab_set and t not in bad_words:
                                 vocab_dict[t] += 1
 
     more = VOCAB_MAX_SIZE - len(vocab_list)
