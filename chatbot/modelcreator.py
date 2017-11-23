@@ -138,7 +138,7 @@ class ModelCreator(object):
             variables = [v for v in tf.global_variables() if not v.name.startswith('discriminator')]
         else:
             variables = tf.global_variables()
-        self.saver = tf.train.Saver(variables, max_to_keep=5)
+        self.saver = tf.train.Saver(variables, max_to_keep=2)
 
         # Print trainable variables
         if training:
