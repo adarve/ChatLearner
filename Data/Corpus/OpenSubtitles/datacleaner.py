@@ -142,5 +142,5 @@ if __name__ == "__main__":
     cd = DataCleaner(corp_dir)
     print("{} conversations loaded.".format(len(cd.conversations)))
 
-    out_file = os.path.join(corp_dir, 'opensubtitles_cleaned.txt')
+    out_file = os.path.join(corp_dir, 'opensubtitles_full_cleaned.txt')
     cd.write_cleaned_conversations(out_file, 1000000)
