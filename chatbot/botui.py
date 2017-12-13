@@ -22,10 +22,10 @@ from chatbot.botpredictor import BotPredictor
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-def bot_ui():
+def bot_ui(resultfolder):
     corp_dir = os.path.join(PROJECT_ROOT, 'Data', 'Corpus')
     knbs_dir = os.path.join(PROJECT_ROOT, 'Data', 'KnowledgeBase')
-    res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
+    res_dir = os.path.join(PROJECT_ROOT, 'Data', resultfolder)
 
     with tf.Session() as sess:
         predictor = BotPredictor(sess, corpus_dir=corp_dir, knbase_dir=knbs_dir,
@@ -38,6 +38,9 @@ def bot_ui():
         sys.stdout.flush()
         sentence = sys.stdin.readline()
         while sentence:
+            if not sentence:
+                continue
+
             if sentence.strip() == 'exit':
                 print("Thank you for using ChatLearner. Goodbye.")
                 break
@@ -48,4 +51,4 @@ def bot_ui():
             sentence = sys.stdin.readline()
 
 if __name__ == "__main__":
-    bot_ui()
+    bot_ui(sys.argv[1])

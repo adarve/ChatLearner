@@ -15,6 +15,7 @@
 import math
 import os
 import time
+import sys
 from datetime import datetime
 
 import tensorflow as tf
@@ -157,6 +158,6 @@ if __name__ == "__main__":
     from settings import PROJECT_ROOT
 
     corp_dir = os.path.join(PROJECT_ROOT, 'Data', 'Corpus')
-    res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
+    res_dir = os.path.join(PROJECT_ROOT, 'Data', sys.argv[1])
     bt = BotTrainer(corpus_dir=corp_dir, hparams_dir=res_dir)
     bt.train(res_dir)

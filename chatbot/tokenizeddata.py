@@ -30,7 +30,6 @@ AUG1_FOLDER = "Augment1"
 AUG2_FOLDER = "Augment2"
 
 MAX_LEN = 1000  # Assume no line in the training data is having more than this number of characters
-VOCAB_FILE = "vocab.txt"
 
 
 class TokenizedData:
@@ -57,7 +56,7 @@ class TokenizedData:
         self.text_set = None
         self.id_set = None
 
-        vocab_file = os.path.join(corpus_dir, VOCAB_FILE)
+        vocab_file = os.path.join(corpus_dir, self.hparams.vocabfile)
         self.vocab_size, self.vocab_list = check_vocab(vocab_file)
         self.vocab_table = lookup_ops.index_table_from_file(vocab_file,
                                                             default_value=self.hparams.unk_id)
