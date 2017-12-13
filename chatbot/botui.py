@@ -38,7 +38,7 @@ def bot_ui(resultfolder):
         sys.stdout.flush()
         sentence = sys.stdin.readline()
         while sentence:
-            if not sentence:
+            if not sentence.strip():
                 continue
 
             if sentence.strip() == 'exit':
